@@ -2,29 +2,98 @@ import os
 from flask import Flask, request, jsonify, render_template_string
 from google import genai
 
-# Initialize the Flask app
 app = Flask(__name__)
 client = genai.Client()
 
-# Simple HTML template for the front end
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>Gemini Chatbot</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
-        #chatbox { height: 300px; border: 1px solid #ccc; padding: 10px; overflow-y: scroll; }
-        .message { margin-bottom: 10px; }
-        .user { color: blue; }
-        .bot { color: green; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 600px; 
+            margin: auto; 
+            padding: 20px; 
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh; /* Ensures footer is at bottom of viewport */
+        }
+        h1 { margin-bottom: 0; }
+        #chatbox { 
+            height: 400px; 
+            border: 1px solid #ccc; 
+            padding: 15px; 
+            overflow-y: scroll; 
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            flex-grow: 1; /* Allows chatbox to expand */
+        }
+        .message { 
+            padding: 10px 15px; 
+            border-radius: 18px; 
+            max-width: 80%; 
+            word-wrap: break-word;
+        }
+        .user { 
+            align-self: flex-end; 
+            background-color: #007bff; 
+            color: white; 
+        }
+        .bot { 
+            align-self: flex-start; 
+            background-color: #e9e9eb; 
+            color: black; 
+        }
+        #input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px; /* Space above footer */
+        }
+        #user_input {
+            flex-grow: 1;
+            padding: 10px;
+            border-radius: 18px;
+            border: 1px solid #ccc;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 18px;
+            cursor: pointer;
+        }
+        /* New Footer Style */
+        .footer {
+            margin-top: auto; /* Pushes the footer to the bottom */
+            text-align: center;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            font-size: 0.8em;
+            color: #666;
+        }
     </style>
 </head>
 <body>
-    <h1>Gemini Chatbot</h1>
+    <h1>Welcome to my first chatbot</h1>
     <div id="chatbox"></div>
-    <input type="text" id="user_input" placeholder="Type a message...">
-    <button onclick="sendMessage()">Send</button>
+    <div id="input-area">
+        <input type="text" id="user_input" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <!-- NEW FOOTER SECTION -->
+    <div class="footer">
+        Developed by: **Sujoy Ghosh** <br>
+        Role: *Software Engineer*
+    </div>
 
     <script>
         function sendMessage() {
@@ -32,12 +101,16 @@ HTML_TEMPLATE = """
             const message = input.value;
             if (!message) return;
 
-            // Add user message to chatbox
             const chatbox = document.getElementById('chatbox');
             chatbox.innerHTML += `<div class="message user">You: ${message}</div>`;
             input.value = '';
 
-            // Send message to the Flask backend API
+            const thinking = document.createElement('div');
+            thinking.classList.add('message', 'bot', 'thinking');
+            thinking.innerText = 'Typing...';
+            chatbox.appendChild(thinking);
+            chatbox.scrollTop = chatbox.scrollHeight;
+
             fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -45,9 +118,9 @@ HTML_TEMPLATE = """
             })
             .then(response => response.json())
             .then(data => {
-                // Add bot message to chatbox
-                chatbox.innerHTML += `<div class="message bot">Bot: ${data.response}</div>`;
-                chatbox.scrollTop = chatbox.scrollHeight; // Scroll to bottom
+                chatbox.removeChild(thinking);
+                chatbox.innerHTML += `<div class="message bot">${data.response}</div>`;
+                chatbox.scrollTop = chatbox.scrollHeight;
             });
         }
     </script>
@@ -55,21 +128,17 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# The main web page route
+
 @app.route('/')
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-# The API endpoint that handles the AI interaction
 @app.route('/api/chat', methods=['POST'])
 def chat_endpoint():
     data = request.get_json()
     user_message = data.get('message', '')
 
     try:
-        # We need a way to manage chat history globally or use a simple generate_content for now
-        # For simplicity in this basic Flask app, we'll use a single-turn interaction
-        # If you want true multi-turn, you need session management (more complex)
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=user_message,
@@ -79,6 +148,4 @@ def chat_endpoint():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Run the app locally for testing
-    # It will run on 127.0.0.1
     app.run(debug=True)
